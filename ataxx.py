@@ -5,450 +5,299 @@ import sys
 from copy import deepcopy 
 import time 
 import random 
+import os
 
 
-SQUARE_COUNT = 6 
+
+SIZE = 5
+WHITE = 1
+BLACK = -1
 SQUARE_SIZE = 75 
 BLUE = (0,0,255) 
 RED = (255,0,0) 
-WHITE = (255,255,255) 
-BLACK = (0,0,0) 
-GREY = (182,179,179) 
-width = SQUARE_COUNT * SQUARE_SIZE 
-height = SQUARE_COUNT * SQUARE_SIZE 
+WHITE_COLOR = (255,255,255) 
+BLACK_COLOR = (0,0,0) 
+GREY_COLOR = (182,179,179) 
+width = SIZE * SQUARE_SIZE 
+height = SIZE * SQUARE_SIZE 
+width = SIZE * SQUARE_SIZE 
+height = SIZE * SQUARE_SIZE 
+size = (width, height) 
 
 
-def create_board_1(): 
-    board = np.zeros((SQUARE_COUNT,SQUARE_COUNT))
-    board[0][0] = 1
-    board[SQUARE_COUNT-1][SQUARE_COUNT-1] = 1
-    board[0][SQUARE_COUNT-1] = 2
-    board[SQUARE_COUNT-1][0] = 2
-    return board
-  
+class Board():
+    def __init__(self, size):
+        self.size = size
+        self.board_matrix = np.zeros((size, size)).astype(int)
+        self.to_move = WHITE
+        self.next = BLACK
+
+        self.board_matrix[0][0] = WHITE
+        self.board_matrix[self.size-1][self.size-1] = WHITE
+        self.board_matrix[0][self.size-1] = BLACK
+        self.board_matrix[self.size-1][0] = BLACK  
+
     
-
-def place(board, x, y, piece): 
-    board[x][y] = piece 
-
-
-def jump(board, c, r, x, y, piece): 
-    board[r][c] = 0
-    board[x][y] = piece
-               
-
-def change(board, r, c):
-    for i in range(SQUARE_COUNT):
-        for l in range(SQUARE_COUNT):
-            if i == r + 2:
-                if (l == c - 2 or l == c - 1 or l == c or l == c + 1 or l == c + 2) and board[i][l] == 0:
-                    board[i][l] = 4            
-            if i == r + 1:
-                if (l == c - 1 or l == c or l == c + 1) and board[i][l] == 0:
-                    board[i][l] = 3
-                if (l == c - 2 or l == c + 2) and board[i][l] == 0:
-                    board[i][l] = 4
-            if i == r:
-                if (l == c - 1 or l == c + 1) and board[i][l] == 0:
-                    board[i][l] = 3
-                if (l == c - 2 or l == c + 2) and board[i][l] == 0:
-                    board[i][l] = 4
-            if i == r - 1:
-                if (l == c - 1 or l == c or l == c + 1) and board[i][l] == 0:
-                    board[i][l] = 3
-                if (l == c - 2 or l == c + 2) and board[i][l] == 0:
-                    board[i][l] = 4
-            if i == r - 2:
-                if (l == c - 2 or l == c - 1 or l == c or l == c + 1 or l == c + 2) and board[i][l] == 0:
-                    board[i][l] = 4        
-            
-                
-def change_back(board): 
-    for i in range(SQUARE_COUNT):
-        for l in range(SQUARE_COUNT):
-            if board[i][l] == 3 or board[i][l] == 4:
-                board[i][l] = 0        
+    def place(self, x, y): 
+        self.board_matrix[x][y] = self.to_move 
 
 
-def eat(board, x, y, not_piece, piece): 
-    for m in range(-1, 2):
-        for n in range(-1, 2):
-            if x+m <= SQUARE_COUNT-1 and x+m >=0 and y+n <= SQUARE_COUNT-1 and y+n >=0: 
-                if board[x+m][y+n] == not_piece:
-                    board[x+m][y+n] = piece
-                
+    def jump(self, x, y, new_x, new_y): 
+        self.board_matrix[x][y] = 0
+        self.board_matrix[new_x][new_y] = self.to_move
 
-def piece_counter(board, piece): 
-    piece_count = 0
-    for r in range(SQUARE_COUNT):
-        for c in range(SQUARE_COUNT):
-            if board[r][c] == piece:
-                piece_count += 1
-    return piece_count
+    
+    def calc_dist(self, x1, y1, x2, y2):
+        return math.sqrt((x1-x2)**2+(y1-y2)**2)
+
+
+    def play_move(self, x, y, new_x, new_y):
+
+        if new_x < 0 or new_x >= self.size or new_y < 0 or new_y >= self.size:
+            return False
+
+        if self.board_matrix[new_x][new_y] != 0:
+            return False
+
+        dist = self.calc_dist(x, y, new_x, new_y)
+
+        if dist == 0:
+            return False
         
+        elif dist < 2:
+            self.place(new_x, new_y)
+            return True
 
-def available_moves(board, piece):
-    available_moves = 0
-    for i in range(SQUARE_COUNT):
-        for l in range(SQUARE_COUNT):
-            if board[i][l] == piece:
-                for m in range(-2, 3):
-                    for n in range(-2, 3):
-                        if i+m <= SQUARE_COUNT-1 and i+m >=0 and l+n <= SQUARE_COUNT-1 and l+n >=0: 
-                            if board[i+m][l+n] == 0:
-                                available_moves += 1                           
-    return available_moves
+        elif dist < 3:
+            self.jump(x, y, new_x, new_y)
+            return True
 
+        else:
+            return False
+    
+
+    def is_valid_piece(self, x, y):
+        if self.board_matrix[x][y] == self.to_move:
+            return True
+        else:
+            return False
+
+    def eat(self, x, y):
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if x+i < board.size and x+i >=0 and y+j < board.size and y+j >=0: 
+                    if self.board_matrix[x+i][y+j] == -self.to_move:
+                        self.board_matrix[x+i][y+j] = self.to_move
+
+    
+    
+    def get_player_pieces(self): 
+        pieces = []
+        for x in range(self.size):
+            for y in range (self.size): 
+                if self.board_matrix[x][y] == self.to_move:
+                    pieces.append([x,y])
+        return pieces  
         
-def draw_pieces(board): 
-    for k in range(SQUARE_COUNT):
-        for l in range(SQUARE_COUNT):
-            if board[k][l] == 1: 
-                pygame.draw.circle(screen, RED, (int((l+1)*SQUARE_SIZE - SQUARE_SIZE/2),int((k+1)*SQUARE_SIZE - SQUARE_SIZE/2)), SQUARE_SIZE/3)
-            elif board[k][l] == 2: 
-                pygame.draw.circle(screen, BLUE, (int((l+1)*SQUARE_SIZE - SQUARE_SIZE/2),int((k+1)*SQUARE_SIZE - SQUARE_SIZE/2)), SQUARE_SIZE/3)
-            elif board[k][l] == 3 or board[k][l] == 4: 
-                pygame.draw.circle(screen, GREY, (int((l+1)*SQUARE_SIZE - SQUARE_SIZE/2),int((k+1)*SQUARE_SIZE - SQUARE_SIZE/2)), SQUARE_SIZE/3)
-            elif board[k][l] == 5: 
-                pygame.draw.line(screen, WHITE, (l*SQUARE_SIZE,k*SQUARE_SIZE), ((l+1)*SQUARE_SIZE,(k+1)*SQUARE_SIZE), 3)
-                pygame.draw.line(screen, WHITE, (l*SQUARE_SIZE,(k+1)*SQUARE_SIZE), ((l+1)*SQUARE_SIZE,k*SQUARE_SIZE), 3)
-            else: 
-                pygame.draw.circle(screen, BLACK, (int((l+1)*SQUARE_SIZE - SQUARE_SIZE/2),int((k+1)*SQUARE_SIZE - SQUARE_SIZE/2)), SQUARE_SIZE/3)
-    pygame.display.update() 
-     
         
-def draw_lines(board): 
-    for i in range(SQUARE_COUNT -  1):
-        pygame.draw.line(screen, WHITE, ((i+1)*SQUARE_SIZE,0), ((i+1)*SQUARE_SIZE,SQUARE_SIZE*SQUARE_COUNT), 2) 
-        pygame.draw.line(screen, WHITE, (0,(i+1)*SQUARE_SIZE), (SQUARE_SIZE*SQUARE_COUNT,(i+1)*SQUARE_SIZE),2)    
-    pygame.display.update() 
     
-        
-def is_terminal_node(board): 
-    if available_moves(board, player_1_piece) == 0 or available_moves(board, player_2_piece) == 0:
-        return True
+    def available_moves(self): 
+        moves = []
+        for piece in self.get_player_pieces():
+            x = piece[0]
+            y = piece[1]
+            for i in range(-3, 3):
+                for j in range(-3, 3):
+                    temp1_board = Board(SIZE)
+                    temp1_board.board_matrix = self.board_matrix.copy()
+                    if temp1_board.play_move(x, y, x+i, y+j):
+                        moves.append(temp1_board.board_matrix)
+        return moves 
 
-
-def get_player_1_pieces(board): 
-    pieces = []
-    for r in range(SQUARE_COUNT):
-        for c in range (SQUARE_COUNT): 
-            if board[r][c] == player_1_piece:
-                pieces.append([r,c])
-    return pieces    
-    
-
-def get_player_2_pieces(board): 
-    pieces = []
-    for r in range(SQUARE_COUNT):
-        for c in range (SQUARE_COUNT): 
-            if board[r][c] == player_2_piece:
-                pieces.append([r,c])
-    return pieces
-
-
-def get_player_1_moves(board): 
-    moves = []
-    for piece in get_player_1_pieces(board):
-        temp1_board = deepcopy(board)
-        r = piece[0]
-        c = piece[1]
-        change(temp1_board, r, c)
-        for m in range(-3, 3):
-            for n in range(-3, 3):
-                temp2_board = deepcopy(temp1_board)
-                if r+m <= SQUARE_COUNT-1 and r+m >=0 and c+n <= SQUARE_COUNT-1 and c+n >=0: 
-                    if temp1_board[r+m][c+n] == 3:
-                        place(temp2_board, r+m, c+n, player_1_piece)
-                        eat(temp2_board, r+m, c+n, player_2_piece, player_1_piece)
-                        change_back(temp2_board)
-                        moves.append(temp2_board)
-                    elif temp1_board[r+m][c+n] == 4:
-                        jump(temp2_board, c, r, r+m, c+n, player_1_piece)
-                        eat(temp2_board, r+m, c+n, player_2_piece, player_1_piece)
-                        change_back(temp2_board)
-                        moves.append(temp2_board)
-    return moves 
-
-
-def get_player_2_moves(board):
-    moves = []
-    for piece in get_player_2_pieces(board):
-        temp1_board = deepcopy(board)
-        r = piece[0]
-        c = piece[1]
-        change(temp1_board, r, c)
-        for m in range(-3, 3):
-            for n in range(-3, 3):
-                temp2_board = deepcopy(temp1_board)
-                if r+m <= SQUARE_COUNT-1 and r+m >=0 and c+n <= SQUARE_COUNT-1 and c+n >=0: 
-                    if temp1_board[r+m][c+n] == 3:
-                        place(temp2_board, r+m, c+n, player_2_piece)
-                        eat(temp2_board, r+m, c+n, player_1_piece, player_2_piece)
-                        change_back(temp2_board)
-                        moves.append(temp2_board)
-                    elif temp1_board[r+m][c+n] == 4:
-                        jump(temp2_board, c, r, r+m, c+n, player_2_piece)
-                        eat(temp2_board, r+m, c+n, player_1_piece, player_2_piece)
-                        change_back(temp2_board)
-                        moves.append(temp2_board)
-    return moves
-    
-    
-def greedy(board, piece): 
-    if turn == 0:
-        max_pieces = -math.inf
-        best_move = None
-        for move in get_player_1_moves(board):
-            player_1_pieces = piece_counter(move, piece)
-            if available_moves(move, player_2_piece) == 0:
-                return move
-            elif player_1_pieces >= max_pieces:
-                max_pieces = player_1_pieces
-                best_move = move          
-        return best_move
-    if turn != 0:
-        max_pieces = -math.inf
-    best_move = None
-    for move in get_player_2_moves(board):
-        player_2_pieces = piece_counter(move, piece)
-        if available_moves(move, player_2_piece) == 0:
-            return move
-        elif player_2_pieces >= max_pieces:
-            max_pieces = player_2_pieces
-            best_move = move        
-    return best_move
-
-
-def evaluate1(board): 
-    return piece_counter(board, player_1_piece) - piece_counter(board, player_2_piece)    
-    
-    
-def evaluate2(board): 
-    return piece_counter(board, player_2_piece) - piece_counter(board, player_1_piece)
-   
-
+    def is_game_over(self):
+        if len(self.available_moves()) == 0:
+            return True
+        return False
 
     
-
-board = create_board_1() 
- 
-
-    
-player_1 = int(input("Player 1(1: Human,2: Greedy): "))
-player_2 = int(input("Playes 2(1: Human,2: Greedy): ")) 
-
-size = 1
-game_over = False 
-turn = 0                             
-pygame.init() 
-screen = pygame.display.set_mode(size)   
-draw_lines(board) 
-draw_pieces(board) 
-font_size = 50 
-myfont = pygame.font.Font(None, font_size) 
-clicks = 0 
-player_1_piece = 1 
-player_2_piece = 2    
+    def turn(self):
+        """Keep track of the turn by flipping between BLACK and WHITE."""
+        if self.to_move == BLACK:
+            self.to_move = WHITE
+            self.next = BLACK
+        else:
+            self.to_move = BLACK
+            self.next = WHITE
 
 
-if player_1 != 1 and player_2 != 1: 
-    time.sleep(3)
 
 
-while not game_over:
-    if turn == 0: 
-        if player_1 == 1:
-            pygame.display.update() 
-            for event in pygame.event.get(): 
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN:  
-                    if clicks == 0:
-                        posc = event.pos[0] 
-                        c = int(math.floor(posc/SQUARE_SIZE)) 
-                        posr = event.pos[1] 
-                        r = int(math.floor(posr/SQUARE_SIZE)) 
-                        if board[r][c] == player_1_piece: 
-                            change(board, r, c)
-                            draw_pieces(board)
-                            clicks = 1
-                    if clicks == 1:
-                        posy = event.pos[0]
-                        y = int(math.floor(posy/SQUARE_SIZE)) 
-                        posx = event.pos[1]
-                        x = int(math.floor(posx/SQUARE_SIZE)) 
-                        if board[x][y] == 3:
-                            place(board, x, y, player_1_piece)
-                            eat(board, x, y, player_2_piece, player_1_piece)
-                            turn += 1  
-                            turn = turn % 2 
-                            change_back(board)
-                            draw_pieces(board)
-                            clicks = 0
-                            if available_moves(board, player_2_piece) == 0: 
-                                if evaluate1(board) > 0: 
-                                    print("PLAYER 1 WINS!!!") 
-                                    game_over = True 
-                                elif evaluate2(board) > 0:
-                                    print("PLAYER 2 WINS!!!")
-                                    game_over = True 
-                                else:
-                                    print("IT'S A TIE!!!")
-                                    game_over = True 
-                        elif board[x][y] == 4: 
-                            jump(board, c, r, x, y, player_1_piece)
-                            eat(board, x, y, player_2_piece, player_1_piece)
-                            turn += 1
-                            turn = turn % 2
-                            change_back(board)
-                            draw_pieces(board)
-                            clicks = 0
-                            if available_moves(board, player_2_piece) == 0: 
-                                if evaluate1(board) > 0: 
-                                    print("PLAYER 1 WINS!!!") 
-                                    game_over = True 
-                                elif evaluate2(board) > 0:
-                                    print("PLAYER 2 WINS!!!")
-                                    game_over = True 
-                                else:
-                                    print("IT'S A TIE!!!") 
-                                    game_over = True 
-                        else: 
-                            if board[x][y] == player_1_piece: 
-                                change_back(board)
-                                r = x 
-                                c = y 
-                                change(board, r, c)
-                                draw_pieces(board)
-                            else: 
-                                change_back(board)
-                                draw_pieces(board)
-        elif player_1 == 2 and not game_over:  
-            pygame.display.update()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-            time.sleep(1) 
-            best_move = greedy(board, player_1_piece)
-            board = best_move 
-            draw_pieces(board)
-            turn += 1
-            turn = turn % 2        
-            if available_moves(board, player_2_piece) == 0:
-                if evaluate1(board) > 0: 
-                    print("PLAYER 1 WINS!!!")
-                    game_over = True 
-                elif evaluate2(board) > 0:
-                    print("PLAYER 2 WINS!!!") 
-                    game_over = True 
+    def print_board(self):
+       
+        os.system('cls' if os.name == 'nt' else 'clear')
+
+        for i in range(SIZE): #Imprimir a matriz
+            line = ""
+            for j in range(SIZE):
+                if self.board_matrix[i][j] != -1:
+                    line += " " + str(self.board_matrix[i][j]) + " "
                 else:
-                    print("IT'S A TIE!!!") 
-                    game_over = True 
-        
+                    line += str(self.board_matrix[i][j]) + " "
 
-    if turn != 0:
-        if player_2 == 1:
-            pygame.display.update()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN: 
-                    player_1_piece = 1
-                    player_2_piece = 2
-                    if clicks == 0:
-                        posc = event.pos[0]
-                        c = int(math.floor(posc/SQUARE_SIZE))
-                        posr = event.pos[1]
-                        r = int(math.floor(posr/SQUARE_SIZE))
-                        if board[r][c] == player_2_piece:
-                            change(board, r, c)
-                            draw_pieces(board)
-                            clicks = 1
-                    if clicks == 1:
-                        posy = event.pos[0]
-                        y = int(math.floor(posy/SQUARE_SIZE))
-                        posx = event.pos[1]
-                        x = int(math.floor(posx/SQUARE_SIZE))
-                        if board[x][y] == 3:
-                            place(board, x, y, player_2_piece)
-                            eat(board, x, y, player_1_piece, player_2_piece)
-                            turn += 1
-                            turn = turn % 2
-                            change_back(board)
-                            draw_pieces(board)
+            print(line)
+
+
+            
+    def draw_pieces(self, screen): 
+        for k in range(SIZE):
+            for l in range(SIZE):
+                if self.board_matrix[k][l] == WHITE: 
+                    pygame.draw.circle(screen, RED, (int((l+1)*SQUARE_SIZE - SQUARE_SIZE/2),int((k+1)*SQUARE_SIZE - SQUARE_SIZE/2)), SQUARE_SIZE/3)
+                elif self.board_matrix[k][l] == BLACK: 
+                    pygame.draw.circle(screen, BLUE, (int((l+1)*SQUARE_SIZE - SQUARE_SIZE/2),int((k+1)*SQUARE_SIZE - SQUARE_SIZE/2)), SQUARE_SIZE/3)
+                #elif self.board_matrix[k][l] == 3 or board[k][l] == 4: 
+                #    pygame.draw.circle(screen, GREY_COLOR, (int((l+1)*SQUARE_SIZE - SQUARE_SIZE/2),int((k+1)*SQUARE_SIZE - SQUARE_SIZE/2)), SQUARE_SIZE/3)
+                #elif self.board_matrix[k][l] == 5: 
+                #    pygame.draw.line(screen, WHITE_COLOR, (l*SQUARE_SIZE,k*SQUARE_SIZE), ((l+1)*SQUARE_SIZE,(k+1)*SQUARE_SIZE), 3)
+                #    pygame.draw.line(screen, WHITE_COLOR, (l*SQUARE_SIZE,(k+1)*SQUARE_SIZE), ((l+1)*SQUARE_SIZE,k*SQUARE_SIZE), 3)
+                else: 
+                    pygame.draw.circle(screen, BLACK_COLOR, (int((l+1)*SQUARE_SIZE - SQUARE_SIZE/2),int((k+1)*SQUARE_SIZE - SQUARE_SIZE/2)), SQUARE_SIZE/3)
+        pygame.display.update() 
+        
+            
+    def draw_lines(self, screen): 
+        for i in range(SIZE -  1):
+            pygame.draw.line(screen, WHITE_COLOR, ((i+1)*SQUARE_SIZE,0), ((i+1)*SQUARE_SIZE,SQUARE_SIZE*SIZE), 2) 
+            pygame.draw.line(screen, WHITE_COLOR, (0,(i+1)*SQUARE_SIZE), (SQUARE_SIZE*SIZE,(i+1)*SQUARE_SIZE),2)    
+        pygame.display.update() 
+        
+    def draw_grey_circles(self, screen, x, y):
+        for i in range(-2, 3):
+            for j in range(-2, 3):
+                if x+i >= 0 and x+i < SIZE and y+j >= 0 and y+j < SIZE:
+
+                    if self.board_matrix[x+i][y+j] == 0:
+                        # print(f"dawd {y+i}")
+                        # print(f"ddaaiowjiaw {x+j}")
+                        pygame.draw.circle(screen, GREY_COLOR, (int((y+j+1)*SQUARE_SIZE - SQUARE_SIZE/2),int((x+i+1)*SQUARE_SIZE - SQUARE_SIZE/2)), SQUARE_SIZE/3)
+                        
+
+
+
+
+
+
+def main():
+    game_over = False
+    screen = pygame.display.set_mode(size)   
+    board.draw_lines(screen)
+    board.draw_pieces(screen)
+
+    clicks = 0
+    while not game_over:
+        #print(board.to_move)
+        pygame.display.update() 
+        if board.is_game_over():
+            print(f"Player {-board.to_move} won !!!!")
+            break
+
+
+
+
+
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                exit()
+
+            
+
+
+            if event.type == pygame.MOUSEBUTTONDOWN: 
+                #available_moves = board.available_moves()
+               # print(len(available_moves))
+
+                if clicks == 0:
+                    board.draw_pieces(screen)
+                    pygame.display.update() 
+                    num1 = event.pos[1] 
+                    x = int(math.floor(num1/SQUARE_SIZE)) 
+                    num2 = event.pos[0] 
+                    y = int(math.floor(num2/SQUARE_SIZE))
+                    if board.is_valid_piece(x, y): 
+                        #for event in pygame.event.get():
+                        board.draw_grey_circles(screen, x, y)
+                        pygame.display.update() 
+
+                        clicks = 1
+                elif clicks == 1:
+                    new_num1 = event.pos[1] 
+                    new_x = int(math.floor(new_num1/SQUARE_SIZE)) 
+                    new_num2 = event.pos[0] 
+                    new_y = int(math.floor(new_num2/SQUARE_SIZE))
+                    if board.play_move(x, y, new_x, new_y):
+                        board.eat(new_x, new_y)
+                        board.draw_pieces(screen)
+                        pygame.display.update() 
+                        board.turn()
+                        clicks = 0
+                        board.print_board()
+
+                    else:
+                        if board.is_valid_piece(new_x, new_y):
+                            x = new_x
+                            y = new_y
+                            board.draw_pieces(screen)
+                            board.draw_grey_circles(screen, x, y)
+                            pygame.display.update() 
                             clicks = 0
-                            if available_moves(board, player_1_piece) == 0:
-                                if evaluate1(board) > 0:
-                                    print("PLAYER 1 WINS!!!")
-                                    game_over = True
-                                elif evaluate2(board) > 0:
-                                    print("PLAYER 2 WINS!!!")
-                                    game_over = True
-                                else:
-                                    print("IT'S A TIE!!!")
-                                    game_over = True
-                        elif board[x][y] == 4:
-                            jump(board, c, r, x, y, player_2_piece)
-                            eat(board, x, y, player_1_piece, player_2_piece)
-                            turn += 1
-                            turn = turn % 2
-                            change_back(board)
-                            draw_pieces(board)
-                            clicks = 0
-                            if available_moves(board, player_1_piece) == 0:
-                                if evaluate1(board) > 0:
-                                    print("PLAYER 1 WINS!!!")
-                                    game_over = True
-                                elif evaluate2(board) > 0:
-                                    print("PLAYER 2 WINS!!!")
-                                    game_over = True
-                                else:
-                                    print("IT'S A TIE!!!")
-                                    game_over = True
                         else:
-                            if board[x][y] == player_2_piece:
-                                change_back(board)
-                                r = x
-                                c = y
-                                change(board, r, c)
-                                draw_pieces(board)
-                            else:
-                                change_back(board)
-                                draw_pieces(board)
-        elif player_2 == 2 and not game_over: 
-            pygame.display.update()
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()               
-            time.sleep(1)
-            player_1_piece = 1
-            player_2_piece = 2
-            best_move = greedy(board, player_2_piece)
-            board = best_move
-            draw_pieces(board)
-            turn += 1
-            turn = turn % 2        
-            if available_moves(board, player_1_piece) == 0:
-                if evaluate1(board) > 0:
-                    print("PLAYER 1 WINS!!!")
-                    game_over = True
-                elif evaluate2(board) > 0:
-                    print("PLAYER 2 WINS!!!")
-                    game_over = True
-                else:
-                    print("IT'S A TIE!!!")
-                    game_over = True
-        
-            
+                            board.draw_pieces(screen)
+                            pygame.display.update() 
+                            
 
-while game_over: 
-    pygame.display.update()
-    for event in pygame.event.get(): 
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+
+
+
+                                
+        # #x, y = map(int, input("piece: ").split())
+        #         if board.is_valid_piece(x, y):
+
+
+                   # for event in pygame.event.get():
+                   #             if event.type == pygame.QUIT:
+                   #                 exit()
+
+                                
+        #             board.draw_pieces(screen)
+        #             pygame.display.update
+
+        #             if event.type == pygame.MOUSEBUTTONDOWN: 
+        #                 num1 = event.pos[1] 
+        #                 new_x = int(math.floor(num1/SQUARE_SIZE)) 
+        #                 num2 = event.pos[0] 
+        #                 new_y = int(math.floor(num2/SQUARE_SIZE))
+
+        # #new_x, new_y = map(int, input("coords: ").split())
+        #                 played_move = board.play_move(x, y, new_x, new_y)
+        #                 while not played_move:
+                            
+                                    
+        #                     if event.type == pygame.MOUSEBUTTONDOWN: 
+        #                         num1 = event.pos[1] 
+        #                         new_x = int(math.floor(num1/SQUARE_SIZE)) 
+        #                         num2 = event.pos[0] 
+        #                         new_y = int(math.floor(num2/SQUARE_SIZE))
+                            
+                            
+        #                     #new_x, new_y = map(int, input("coords: ").split())
+        #                     played_move = board.play_move(x, y, new_x, new_y)
+                            
+        #                 board.turn()
+
+
+
+if __name__ == "__main__":
+    pygame.init()
+    board = Board(SIZE)
+    main()

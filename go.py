@@ -150,8 +150,7 @@ class Board():
                 line += str(self.board_matrix[i][j]) + " "
 
             print(line)
-
-
+        
 
 class Stone():
     def __init__(self, board, position, color):
@@ -180,14 +179,17 @@ class Stone():
     @property
     def neighbors(self):
         """Return a list of neighboring points."""
+
         neighboring = [(self.position[0] - 1, self.position[1]),
                        (self.position[0] + 1, self.position[1]),
                        (self.position[0], self.position[1] - 1),
                        (self.position[0], self.position[1] + 1)]
+        neighbours = []
         for position in neighboring:
-            if not 0 <= position[0] < SIZE or not 0 <= position[1] < SIZE:
-                neighboring.remove(position)
-        return neighboring
+            if not (position[0] < 0 or  position[0] >= SIZE or position[1] < 0 or position[1] >= SIZE):
+                neighbours.append(position)
+
+        return neighbours
 
 
     @property
@@ -303,7 +305,7 @@ def main():
 
     while True:
         pygame.display.update() 
-
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 exit()
@@ -317,8 +319,8 @@ def main():
                     #board.play_move(num1, num2)
                     board.update_liberties(new_stone)
                     board.update_board()
-                    #board.print_board()
                     draw_pieces(board.board_matrix)
+                    board.print_board()
                     board.turn()
 
         """
